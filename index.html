@@ -1,0 +1,285 @@
+<!-- 
+    Azpainter 3 blend mode comparison tool 
+	Copyright (C) 2023  lincerely
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>AzPainter 3 blend mode comparison tool</title>
+</head>
+<body>
+<style>
+#graph {
+	max-height: 500px;
+	max-width: 600px;
+	padding-right: 12px;
+	margin-right: 12px;
+	float: left;
+}
+pre {
+	tab-size: 4;
+}
+</style>
+<script src="./plotly-2.18.0.min.js"></script>
+<h1>Azpainter 3 blend mode comparison tool</h1>
+<p><b>Hints:</b> Click legend to toggle visiblity; Double-click legend to toggle other's visiblity.</p>
+<div id="graph"></div>
+<fieldset>
+	<legend>Controls</legend>
+	<div>
+		<input type="range" min="0" max="255" id="alpha" name="alpha" oninput="updatePlot()" value="255">
+		<label for="alpha" id="alpha_label">Alpha: 0</label>
+	</div>
+	<div>
+		<input type="range" min="0" max="255" id="background" name="background" oninput="updatePlot()" value="255">
+		<label for="background" id="background_label">Background: 0</label>
+	</div>
+</fieldset>
+
+<fieldset>
+	<legend>Blending functions viewer</legend>
+	<div>
+		<select id="blend_func"></select>
+	</div>
+	<div>
+		<pre id="blend_code"></pre>
+		<p><small>Ported to javascript from <a href="https://gitlab.com/azelpg/azpainter/-/blob/master/src/image/blendcolor_8bit.c">https://gitlab.com/azelpg/azpainter/-/blob/master/src/image/blendcolor_8bit.c</a></small></p>
+	</div>
+</fieldset>
+
+<h2>Notes</h2>
+Some observations:
+<ul>
+	<li>Only <code>luminous_add</code> and <code>luminous_dodge</code> affect by alpha value. Alpha controls the slope, background value control the offset.</li>
+	<li><code>overlay</code> and <code>hardlight</code> are almost the same.</li>
+</ul>
+
+<h2>Links</h2>
+<ul>
+	<li>
+		AzPainter homepage [
+		<a href="http://azsky2.html.xdomain.jp/soft/azpainter.html">ja</a> ]
+	</li>
+	<li>
+		Clip studio blend modes introduction [
+		<a href="https://www.clipstudio.net/oekaki/archives/149235">ja</a> |
+		<a href="https://www.clipstudio.net/how-to-draw/archives/154182">en</a> ]
+	</li>
+	<li>
+		CSS blend mode - MDN [
+		<a href="https://developer.mozilla.org/ja/docs/Web/CSS/blend-mode">ja/en</a> ]
+	</li>
+</ul>
+
+<script>
+
+function add(fg, bg, alpha) {
+	return Math.min(fg + bg, 255);
+}
+
+function sub(fg, bg, alpha) {
+	return Math.max(bg - fg, 0);
+}
+
+function screen(fg, bg, alpha) {
+	return fg + bg - (fg * bg / 255);
+}
+
+function overlay(fg, bg, alpha) {
+	if (bg < 128)
+		return fg * bg / 128;
+	else
+		return 255 - ((255 - bg) * (255 - fg) / 128);
+}
+
+function hardlight(fg, bg, alpha) {
+	if (fg < 128)
+		return fg * bg / 128;
+	else
+		return 255 - ((255 - bg) * (255 - fg) / 128);
+}
+
+function softlight(fg, bg, alpha) {
+	var n = fg * bg / 255;
+	return n + (bg * (255 - n - (255 - bg) * (255 - fg) / 255) / 255);
+}
+
+function dodge(fg, bg, alpha) {
+	return Math.min(255, bg * 255 / (255 - fg));
+}
+
+function burn(fg, bg, alpha) {
+	return Math.max(0, 255 - (255 - bg) * 255 / fg);
+}
+
+function linearburn(fg, bg, alpha) {
+	return Math.max(0, fg + bg - 255);
+}
+
+function vividlight(fg, bg, alpha) {
+	var n;
+	if (fg < 128) {
+
+		n = 255 - (fg * 2);
+
+		if (bg <= n || fg == 0)
+			return 0;
+		else
+			return (bg - n) * 255 / (fg * 2);
+
+	} else {
+
+		n = 255 * 2 - (fg * 2);
+
+		if (bg >= n || n == 0)
+			return 255;
+		else
+			return bg * 255 / n;
+	}
+}
+
+function linearlight(fg, bg, alpha) {
+	var n = (fg * 2) + bg - 255;
+	return Math.min(Math.max(n, 0), 255);
+}
+
+function pinlight(fg, bg, alpha) {
+	if (fg > 128)
+		return Math.max(fg * 2 - 255, bg);
+	else
+		return Math.min(fg * 2, bg);
+}
+
+function darken(fg, bg, alpha) {
+	return Math.min(fg, bg);
+}
+
+function lighten(fg, bg, alpha) {
+	return Math.max(fg, bg);
+}
+
+function difference(fg, bg, alpha) {
+	return Math.abs(fg - bg);
+}
+
+function luminous_add(fg, bg, alpha) {
+	return Math.min(255, fg * alpha / 255 + bg);
+}
+
+function luminous_dodge(fg, bg, alpha) {
+	s = fg * alpha / 255;
+	if (s == 255) 
+		return s;
+	else
+		return Math.min(255, bg * 255 / (255 - s));
+}
+
+var modes = [
+	"add",
+	"sub",
+	"screen",
+	"overlay",
+	"hardlight",
+	"softlight",
+	"dodge",
+	"burn",
+	"linearburn",
+	"vividlight",
+	"linearlight",
+	"pinlight",
+	"darken",
+	"lighten",
+	"difference",
+	"luminous_add",
+	"luminous_dodge",
+];
+
+let select_blend_func =  document.getElementById('blend_func');
+let pre_blend_code =  document.getElementById('blend_code');
+modes.forEach(function(v, k) {
+	let opt = document.createElement('option');
+	opt.value = v;
+	opt.innerHTML = v;
+	select_blend_func.appendChild(opt);
+});
+
+
+function update_code() {
+	var func = modes[select_blend_func.selectedIndex];
+	pre_blend_code.innerHTML = eval(func).toString();
+};
+
+select_blend_func.onchange = update_code;
+update_code();
+
+var xs=[];
+for(var i = 0; i <= 255; i++) {
+	xs[i] = i;
+}
+
+function updatePlot() {
+	let bg = parseInt(document.getElementById('background').value);
+	let alpha = parseInt(document.getElementById('alpha').value);
+
+	document.getElementById('background_label').innerHTML = "Background: " + bg;
+	document.getElementById('alpha_label').innerHTML = "Alpha: " + alpha;
+
+	var data;
+
+	let graph = document.getElementById('graph');
+	if (graph && graph.data) {
+
+		data = graph.data;
+		data = data.map(d => { f = eval(d.name); d.y= xs.map(x => f(x, bg, alpha)); return d });
+		
+	} else {
+
+		data = [];
+		modes.forEach(function(v, k) {
+			var f = eval(v);
+			data[k] = {
+				name: v,
+				x: xs,
+				y: xs.map(x => f(x, bg, alpha)),
+				visible: true,
+				opacity: 0.5,
+			};
+		});
+	}
+
+	var layout = {
+		xaxis: {range: [0, 260], fixedrange: true, title: { text: "foreground value" }},
+		yaxis: {range: [0, 260], fixedrange: true, title: { text: "blended value" }},
+		margin: { l: 50, r: 50, b: 50, t: 20, pad: 4},
+	};
+
+	var config = {
+		displayModeBar: false,
+	}
+
+	Plotly.react("graph", data, layout, config);
+}
+
+updatePlot();
+</script>
+<footer>
+	<p>Copyright (C) 2023 lincerely <br>
+	<a href="https://github.com/lincerely/AzPainter-3-blend-compare">git repository</a>
+	</p>
+</footer>
+</body>
+</html>
