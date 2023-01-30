@@ -50,7 +50,7 @@ body {
 </style>
 </head>
 <body>
-<h1>Azpainter 3 blend mode comparison tool</h1>
+<h1>AzPainter 3 blend mode comparison tool</h1>
 <div id="graph"></div>
 <fieldset>
 	<legend>Legend</legend>
@@ -229,7 +229,7 @@ var modes = [
 	"luminous_dodge",
 ];
 
-var palette = d3.scaleOrdinal(d3.schemeCategory20)
+var palette = d3.scaleOrdinal(d3.schemeCategory20b)
 	.domain(modes);
 
 // -- legend
@@ -320,7 +320,7 @@ svg.append("g")
 
 svg.append("text")
 	.attr("transform", "translate(" + (width/2) + "," + 
-		(height + margin.top + 20) + ")")
+		(height + margin.top + 28) + ")")
 	.style("text-anchor", "middle")
 	.text("foreground value");
 
