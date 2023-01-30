@@ -47,6 +47,20 @@ body {
 	pointer-events: none;
 	opacity: 0;
 }
+@media (prefers-color-scheme: dark) {
+	body {
+		mix-blend-mode: isolate;
+		background: black;
+		color: white;
+		fill: white;
+	}
+	#xaxis text, #yaxis text{
+		fill: white;
+	}
+	#xaxis path, #xaxis line, #yaxis path, #yaxis line{
+		stroke: white;
+	}
+}
 </style>
 </head>
 <body>
