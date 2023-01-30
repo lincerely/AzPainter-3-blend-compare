@@ -20,9 +20,11 @@
 <html>
 <head>
 <meta charset="utf-8">
+<link rel="stylesheet" href="./charter/charter.css"/>
 <script src="d3/d3.min.js"></script>
 <title>AzPainter 3 blend mode comparison tool</title>
 <style>
+/* style */
 button {
 	margin-right: 8px;
 }
@@ -34,9 +36,29 @@ button {
 pre {
 	tab-size: 4;
 }
+
+/* dark mode */
 body {
 	background: white;
+	transition: all .1s ease-out;
 }
+body.dark {
+	mix-blend-mode: exclusion;
+	background: black;
+	color: white;
+	fill: white;
+}
+text, path, line {
+	transition: fill .1s ease-out, stroke .1s ease-out;
+}
+.dark #xaxis text, .dark #yaxis text{
+	fill: white;
+}
+.dark #xaxis path, .dark #xaxis line, .dark #yaxis path, .dark #yaxis line{
+	stroke: white;
+}
+
+/* chart interactions */
 .lines {
 	cursor: inherit;
 }
@@ -47,23 +69,10 @@ body {
 	pointer-events: none;
 	opacity: 0;
 }
-@media (prefers-color-scheme: dark) {
-	body {
-		mix-blend-mode: isolate;
-		background: black;
-		color: white;
-		fill: white;
-	}
-	#xaxis text, #yaxis text{
-		fill: white;
-	}
-	#xaxis path, #xaxis line, #yaxis path, #yaxis line{
-		stroke: white;
-	}
-}
 </style>
 </head>
 <body>
+<button onclick="toggleDarkMode()" style="float:right">Dark mode toggle</button>
 <h1>AzPainter 3 blend mode comparison tool</h1>
 <div id="graph"></div>
 <fieldset>
@@ -223,6 +232,11 @@ function luminous_dodge(fg, bg, alpha) {
 		return Math.min(255, bg * 255 / (255 - s));
 }
 
+// -- dark mode
+function toggleDarkMode() {
+	document.getElementsByTagName('body')[0].classList.toggle("dark");
+}
+
 var modes = [
 	"add",
 	"sub",
@@ -243,7 +257,7 @@ var modes = [
 	"luminous_dodge",
 ];
 
-var palette = d3.scaleOrdinal(d3.schemeCategory20b)
+var palette = d3.scaleOrdinal(d3.schemeCategory20)
 	.domain(modes);
 
 // -- legend
