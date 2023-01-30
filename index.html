@@ -19,13 +19,14 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
+<script src="d3/d3.min.js"></script>
 <title>AzPainter 3 blend mode comparison tool</title>
-</head>
-<body>
 <style>
+button {
+	margin-right: 8px;
+}
 #graph {
-	max-height: 500px;
-	max-width: 600px;
 	padding-right: 12px;
 	margin-right: 12px;
 	float: left;
@@ -33,11 +34,29 @@
 pre {
 	tab-size: 4;
 }
+body {
+	background: white;
+}
+.lines {
+	cursor: inherit;
+}
+.lines:hover {
+	cursor: pointer;
+}
+.lines.disabled {
+	pointer-events: none;
+	opacity: 0;
+}
 </style>
-<script src="./plotly-2.18.0.min.js"></script>
+</head>
+<body>
 <h1>Azpainter 3 blend mode comparison tool</h1>
-<p><b>Hints:</b> Click legend to toggle visiblity; Double-click legend to toggle other's visiblity.</p>
 <div id="graph"></div>
+<fieldset>
+	<legend>Legend</legend>
+	<div id="legend_btns"></div>
+	<div id="legends"></div>
+</fieldset>
 <fieldset>
 	<legend>Controls</legend>
 	<div>
@@ -45,7 +64,7 @@ pre {
 		<label for="alpha" id="alpha_label">Alpha: 0</label>
 	</div>
 	<div>
-		<input type="range" min="0" max="255" id="background" name="background" oninput="updatePlot()" value="255">
+		<input type="range" min="0" max="255" id="background" name="background" oninput="updatePlot()" value="150">
 		<label for="background" id="background_label">Background: 0</label>
 	</div>
 </fieldset>
@@ -86,6 +105,8 @@ Some observations:
 </ul>
 
 <script>
+
+// -- blending functions
 
 function add(fg, bg, alpha) {
 	return Math.min(fg + bg, 255);
@@ -208,70 +229,166 @@ var modes = [
 	"luminous_dodge",
 ];
 
+var palette = d3.scaleOrdinal(d3.schemeCategory20)
+	.domain(modes);
+
+// -- legend
+
+let inputs = d3.select("#legends")
+	.selectAll("div")
+	.data(modes)
+	.enter()
+	.append("div")
+	.append("label")
+	.on('mousemove', function(d) {
+		d3.select("#" + d + "_line")
+			.attr("stroke-width", 3);
+	})
+	.on('mouseleave', function(d) {
+		d3.select("#" + d + "_line")
+			.attr("stroke-width", 1.5);
+	})
+	.append("input")
+	.attr("type", "checkbox")
+	.property("checked", true)
+	.attr("id", d => d + "_legend")
+	.on('change', updatePlot);
+
+d3.select("#legends")
+	.selectAll("label")
+	.append("span")
+	.style("color", d => palette(d))
+	.text(d => d);
+
+d3.select("#legend_btns")
+	.append("button")
+		.text("select all")
+		.on("click", function() {
+			inputs.property("checked", true);
+			updatePlot();
+		});
+d3.select("#legend_btns")
+	.append("button")
+		.text("deselect all")
+		.on("click", function() {
+			inputs.property("checked", false);
+			updatePlot();
+		});
+
+// -- controls
+
 let select_blend_func =  document.getElementById('blend_func');
 let pre_blend_code =  document.getElementById('blend_code');
-modes.forEach(function(v, k) {
-	let opt = document.createElement('option');
-	opt.value = v;
-	opt.innerHTML = v;
-	select_blend_func.appendChild(opt);
-});
 
+d3.select("#blend_func")
+	.selectAll("option")
+	.data(modes)
+	.enter()
+	.append("option")
+	.attr("value", d => d)
+	.html(d => d);
 
 function update_code() {
 	var func = modes[select_blend_func.selectedIndex];
 	pre_blend_code.innerHTML = eval(func).toString();
 };
-
 select_blend_func.onchange = update_code;
 update_code();
 
-var xs=[];
-for(var i = 0; i <= 255; i++) {
-	xs[i] = i;
-}
+// -- init graph
+
+var margin = { top: 10, right: 10, bottom: 50, left: 50},
+	width = 400 - margin.left - margin.right,
+	height = 400 - margin.top - margin.bottom;
+
+var svg = d3.select('#graph')
+	.append("svg")
+		.attr("width", width + margin.left + margin.right)
+		.attr("height", height + margin.top + margin.bottom)
+	.append('g')
+		.attr("transform",
+			"translate(" + margin.left + "," + margin.top + ")");
+
+// x axis
+var x = d3.scaleLinear()
+	.domain([0, 255])
+	.range([0, width]);
+svg.append("g")
+	.attr("id", "xaxis")
+	.attr("transform", "translate(0, " + height + ")")
+	.call(d3.axisBottom(x).ticks(5));
+
+svg.append("text")
+	.attr("transform", "translate(" + (width/2) + "," + 
+		(height + margin.top + 20) + ")")
+	.style("text-anchor", "middle")
+	.text("foreground value");
+
+// y axis
+var y = d3.scaleLinear()
+	.domain([0, 255])
+	.range([height, 0]);
+svg.append("g")
+	.attr("id", "yaxis")
+	.call(d3.axisLeft(y).ticks(5));
+
+svg.append("text")
+	.attr("transform", "rotate(-90)")
+	.attr("y", 0 - margin.left)
+	.attr("x", 0 - (height/2))
+	.attr("dy", "1em")
+	.style("text-anchor", "middle")
+	.text("result");
+
 
 function updatePlot() {
+
 	let bg = parseInt(document.getElementById('background').value);
 	let alpha = parseInt(document.getElementById('alpha').value);
+	d3.select("#background_label").html("Background: " + bg);
+	d3.select("#alpha_label").html("Alpha: " + alpha);
 
-	document.getElementById('background_label').innerHTML = "Background: " + bg;
-	document.getElementById('alpha_label').innerHTML = "Alpha: " + alpha;
+	var data = modes.map(function(v, k) {
+		var f = eval(v);
+		return {
+			name: v,
+			values: d3.range(256).map(x => ({x: x, y: f(x, bg, alpha)})),
+		};
+	});
 
-	var data;
+	var line = d3.line().x(d => x(d.x)).y(d => y(d.y));
+	var u = svg.selectAll(".lines")
+		.data(data);
 
-	let graph = document.getElementById('graph');
-	if (graph && graph.data) {
+	var paths = u.enter()
+			.append("path")
+			.attr("class", "lines")
+			.on("mouseover", function(d) {
+				d3.select(this).attr("stroke-width", 3);
+			})
+			.on("mouseout", function(d) {
+				d3.select(this).attr("stroke-width", 1.5);
+			})
+			.on("click", function(d) {
+				let el = document.getElementById(d.name + "_legend");
+				el.checked = el.checked? false: true;
+				updatePlot();
+			});
 
-		data = graph.data;
-		data = data.map(d => { f = eval(d.name); d.y= xs.map(x => f(x, bg, alpha)); return d });
-		
-	} else {
+	paths.append("title")
+		.text(d => d.name);
 
-		data = [];
-		modes.forEach(function(v, k) {
-			var f = eval(v);
-			data[k] = {
-				name: v,
-				x: xs,
-				y: xs.map(x => f(x, bg, alpha)),
-				visible: true,
-				opacity: 0.5,
-			};
-		});
-	}
-
-	var layout = {
-		xaxis: {range: [0, 260], fixedrange: true, title: { text: "foreground value" }},
-		yaxis: {range: [0, 260], fixedrange: true, title: { text: "blended value" }},
-		margin: { l: 50, r: 50, b: 50, t: 20, pad: 4},
-	};
-
-	var config = {
-		displayModeBar: false,
-	}
-
-	Plotly.react("graph", data, layout, config);
+	paths.merge(u)
+		.transition()
+		.duration(1)
+			.attr("id", d => d.name + "_line")
+			.attr("class", d => 
+				document.getElementById(d.name + "_legend").checked?
+					"lines":"lines disabled")
+			.attr("fill", "none")
+			.attr("stroke", d => palette(d.name))
+			.attr("stroke-width", 1.5)
+			.attr("d", d => line(d.values));
 }
 
 updatePlot();
