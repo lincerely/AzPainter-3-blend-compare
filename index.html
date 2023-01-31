@@ -36,6 +36,9 @@ button {
 pre {
 	tab-size: 4;
 }
+#legends label {
+	font-weight: bold;
+}
 
 /* dark mode */
 body {
@@ -257,8 +260,13 @@ var modes = [
 	"luminous_dodge",
 ];
 
+// -- setting
+
 var palette = d3.scaleOrdinal(d3.schemeCategory20)
 	.domain(modes);
+
+const normalWidth = 3;
+const hoverWidth = 6;
 
 // -- legend
 
@@ -270,11 +278,11 @@ let inputs = d3.select("#legends")
 	.append("label")
 	.on('mousemove', function(d) {
 		d3.select("#" + d + "_line")
-			.attr("stroke-width", 3);
+			.attr("stroke-width", hoverWidth);
 	})
 	.on('mouseleave', function(d) {
 		d3.select("#" + d + "_line")
-			.attr("stroke-width", 1.5);
+			.attr("stroke-width", normalWidth);
 	})
 	.append("input")
 	.attr("type", "checkbox")
@@ -392,10 +400,10 @@ function updatePlot() {
 			.append("path")
 			.attr("class", "lines")
 			.on("mouseover", function(d) {
-				d3.select(this).attr("stroke-width", 3);
+				d3.select(this).attr("stroke-width", hoverWidth);
 			})
 			.on("mouseout", function(d) {
-				d3.select(this).attr("stroke-width", 1.5);
+				d3.select(this).attr("stroke-width", normalWidth);
 			})
 			.on("click", function(d) {
 				let el = document.getElementById(d.name + "_legend");
@@ -415,7 +423,7 @@ function updatePlot() {
 					"lines":"lines disabled")
 			.attr("fill", "none")
 			.attr("stroke", d => palette(d.name))
-			.attr("stroke-width", 1.5)
+			.attr("stroke-width", normalWidth)
 			.attr("d", d => line(d.values));
 }
 
